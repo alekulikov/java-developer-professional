@@ -58,6 +58,10 @@ subprojects {
         options.compilerArgs.addAll(listOf("-Xlint:all,-serial,-processing"))
     }
 
+    tasks.withType<Test> {
+        useJUnitPlatform()
+    }
+
     plugins.apply("name.remal.sonarlint")
     plugins.apply("com.diffplug.spotless")
     extensions.configure<SpotlessExtension> {

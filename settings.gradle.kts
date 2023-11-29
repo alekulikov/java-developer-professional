@@ -1,6 +1,6 @@
 rootProject.name = "java-developer-professional"
 include("hw01-gradle")
-
+include("hw02-generics")
 
 pluginManagement {
     val jgitver: String by settings
