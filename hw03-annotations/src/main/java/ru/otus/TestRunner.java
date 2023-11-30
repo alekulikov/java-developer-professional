@@ -1,6 +1,6 @@
 package ru.otus;
 
-import java.lang.reflect.InvocationTargetException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
@@ -9,12 +9,10 @@ import org.slf4j.LoggerFactory;
 import ru.otus.annotations.After;
 import ru.otus.annotations.Before;
 import ru.otus.annotations.Test;
-import ru.otus.exceptions.TestFailedException;
 
 public class TestRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(TestRunner.class);
-    private static final String EXCEPTION_MESSAGE = "Annotations cannot be specified over a single method";
 
     public static void main(String[] args) {
         try {
@@ -26,62 +24,58 @@ public class TestRunner {
 
     private static void runTestClass(String testClass) throws ClassNotFoundException {
         var clazz = Class.forName(testClass);
-        var beforeMethods = getAllBeforeMethods(clazz);
-        var afterMethods = getAllAfterMethods(clazz);
+        var beforeMethods = getAllMethodsByAnnotation(clazz, Before.class);
+        var afterMethods = getAllMethodsByAnnotation(clazz, After.class);
+        var testMethods = getAllMethodsByAnnotation(clazz, Test.class);
 
-        Arrays.stream(clazz.getDeclaredMethods())
-                .filter(method -> method.isAnnotationPresent(Test.class))
-                .forEach(test -> runTest(test, beforeMethods, afterMethods));
+        var testPassedCount = testMethods.stream()
+                .mapToInt(test ->
+                        Boolean.compare(runTest(test, beforeMethods, afterMethods, getTestObject(clazz)), false))
+                .sum();
+        logger.info(
+                "{} TESTS PASSED | {} TESTS FAILED | {} TESTS TOTAL",
+                testPassedCount,
+                testMethods.size() - testPassedCount,
+                testMethods.size());
     }
 
-    private static List<Method> getAllBeforeMethods(Class<?> clazz) {
-        var beforeMethods = Arrays.stream(clazz.getDeclaredMethods())
-                .filter(method -> method.isAnnotationPresent(Before.class))
+    private static List<Method> getAllMethodsByAnnotation(Class<?> clazz, Class<? extends Annotation> annotation) {
+        return Arrays.stream(clazz.getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(annotation))
                 .toList();
-
-        beforeMethods.forEach(method -> {
-            if (Arrays.stream(method.getDeclaredAnnotations()).anyMatch(annotation -> {
-                var annotationType = annotation.annotationType();
-                return annotationType.equals(Test.class) || annotationType.equals(After.class);
-            })) {
-                throw new TestFailedException(EXCEPTION_MESSAGE);
-            }
-        });
-
-        return beforeMethods;
     }
 
-    private static List<Method> getAllAfterMethods(Class<?> clazz) {
-        var afterMethods = Arrays.stream(clazz.getDeclaredMethods())
-                .filter(method -> method.isAnnotationPresent(After.class))
-                .toList();
-
-        afterMethods.forEach(method -> {
-            if (Arrays.stream(method.getDeclaredAnnotations()).anyMatch(annotation -> {
-                var annotationType = annotation.annotationType();
-                return annotationType.equals(Test.class) || annotationType.equals(Before.class);
-            })) {
-                throw new TestFailedException(EXCEPTION_MESSAGE);
-            }
-        });
-
-        return afterMethods;
-    }
-
-    private static void runTest(Method test, List<Method> beforeMethods, List<Method> afterMethods) {
-        beforeMethods.forEach(TestRunner::invokeWithoutArguments);
+    private static boolean runTest(
+            Method test, List<Method> beforeMethods, List<Method> afterMethods, Object testObject) {
+        var testResult = true;
+        runMethods(beforeMethods, testObject);
         logger.info("{} is running", test.getDeclaredAnnotation(Test.class).displayName());
-        invokeWithoutArguments(test);
-        afterMethods.forEach(TestRunner::invokeWithoutArguments);
+        try {
+            test.invoke(testObject);
+        } catch (Exception e) {
+            logger.error("Test failed", e);
+            testResult = false;
+        }
+        runMethods(afterMethods, testObject);
+        return testResult;
     }
 
-    private static void invokeWithoutArguments(Method method) {
+    private static void runMethods(List<Method> methods, Object testObject) {
+        for (Method method : methods) {
+            try {
+                method.invoke(testObject);
+            } catch (Exception e) {
+                logger.warn("Warning! {} method failed! Results can be invalid", method);
+            }
+        }
+    }
+
+    private static Object getTestObject(Class<?> clazz) {
         try {
-            method.invoke(null);
-        } catch (IllegalAccessException e) {
-            logger.error("Cannot access a test method", e);
-        } catch (InvocationTargetException e) {
-            logger.error("Failed to invoke method", e);
+            return clazz.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            logger.warn("Warning! Object {} not created! Results can be invalid", clazz);
+            return new Object();
         }
     }
 }
