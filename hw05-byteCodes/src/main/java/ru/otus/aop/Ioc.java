@@ -9,25 +9,23 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.otus.annotation.Log;
-import ru.otus.example.TestLogging;
-import ru.otus.example.TestLoggingInterface;
 
 public class Ioc {
     private static final Logger logger = LoggerFactory.getLogger(Ioc.class);
 
     private Ioc() {}
 
-    public static TestLoggingInterface createTestLogging() {
-        InvocationHandler handler = new CalculationInvocationHandler(new TestLogging());
-        return (TestLoggingInterface) Proxy.newProxyInstance(
-                Ioc.class.getClassLoader(), new Class<?>[] {TestLoggingInterface.class}, handler);
+    public static <T, S extends T> T createTestLogging(Class<T> classInterface, S classObject) {
+        InvocationHandler handler = new CalculationInvocationHandler<>(classObject);
+        return classInterface.cast(Proxy.newProxyInstance(
+                Ioc.class.getClassLoader(), classObject.getClass().getInterfaces(), handler));
     }
 
-    static class CalculationInvocationHandler implements InvocationHandler {
-        private final TestLoggingInterface testLogging;
+    static class CalculationInvocationHandler<T> implements InvocationHandler {
+        private final T testLogging;
         private final Set<String> logMethodsSignatures;
 
-        CalculationInvocationHandler(TestLoggingInterface testLogging) {
+        CalculationInvocationHandler(T testLogging) {
             this.testLogging = testLogging;
             this.logMethodsSignatures = getLogMethodsSignatures();
         }
