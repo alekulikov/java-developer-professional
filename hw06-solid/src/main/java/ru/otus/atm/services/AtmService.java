@@ -1,14 +1,13 @@
 package ru.otus.atm.services;
 
-import ru.otus.atm.data.Atm;
-
 import java.math.BigDecimal;
-import java.util.List;
+import java.util.Map;
+import ru.otus.atm.enums.Banknote;
 
 public interface AtmService {
-    BigDecimal putMoney(Atm atm, List<Integer> notes);
+    BigDecimal putMoney(Map<Banknote, Integer> notes);
 
-    List<Integer> getMoney(Atm atm, BigDecimal amount);
+    Map<Banknote, Integer> getMoney(BigDecimal amount);
 
-    BigDecimal getBalance(Atm atm);
+    BigDecimal getBalance();
 }

@@ -1,14 +1,13 @@
 package ru.otus.atm.services;
 
-import ru.otus.atm.data.MoneyBox;
-
 import java.math.BigInteger;
-import java.util.List;
+import java.util.Map;
+import ru.otus.atm.enums.Banknote;
 
 public interface MoneyBoxService {
-    void putMoney(MoneyBox moneyBox, List<Integer> notes);
+    void putMoney(Map<Banknote, Integer> notes);
 
-    List<Integer> getMoney(MoneyBox moneyBox, BigInteger amount);
+    Map<Banknote, Integer> getMoney(BigInteger amount);
 
-    BigInteger getSum(MoneyBox moneyBox);
+    BigInteger getSum();
 }
